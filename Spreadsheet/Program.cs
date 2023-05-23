@@ -5,57 +5,55 @@ using System.Reactive.Subjects;
 namespace MicroSpread
 {
 
-    // Class representing a cell change event
-    class CellChangeEvent
-    {
-        public int Row { get; }
-        public int Column { get; }
-        public object Value { get; }
-
-        public CellChangeEvent(int row, int col, object value)
-        {
-            Row = row;
-            Column = col;
-            Value = value;
-        }
-    }
 
     class Program
     {
         static void Main(string[] args)
         {
-            // Create the original instance of the Spreadsheet class
-            Spreadsheet originalSpreadsheet = new Spreadsheet();
+            
+            // Create a new instance of the Spreadsheet class
+            Spreadsheet spreadsheet = new Spreadsheet();
 
-            // Create the second instance of the Spreadsheet class
-            Spreadsheet secondSpreadsheet = new Spreadsheet();
+            // Create a new instance of the SpreadsheetMirror class
+            SpreadsheetMirror mirror = new SpreadsheetMirror(3, 3);
 
-            // Subscribe to cell change events for the original spreadsheet
-            IDisposable subscription1 = originalSpreadsheet.cellChangeSubject.Subscribe(cellChangeEvent =>
+            // Subscribe to cell change events in the spreadsheet
+            IDisposable subscription1 = spreadsheet.cellChangeSubject.Subscribe(cellChangeEvent =>
             {
                 // Print the cell change event details to the console
-                Console.WriteLine($"Original: Cell {cellChangeEvent.Row}-{cellChangeEvent.Column} changed. New value: {cellChangeEvent.Value}");
+                Console.WriteLine($"Spreadsheet: Cell {cellChangeEvent.Row}-{cellChangeEvent.Column} changed. New value: {cellChangeEvent.Value}");
 
-                // Update the corresponding cell in the second spreadsheet
-                secondSpreadsheet.SetCell(cellChangeEvent.Row, cellChangeEvent.Column, cellChangeEvent.Value);
+                //
+                //TODO: Locking for concurrency. Cell could be edited before the list is retrieved.
+                //
+                // Check if the cell has dependencies
+                if (spreadsheet.dependencies.ContainsKey(cellChangeEvent.Row) &&
+                    spreadsheet.dependencies[cellChangeEvent.Row].ContainsKey(cellChangeEvent.Column))
+                {
+                    // Get the dependent cell coordinates
+                    List<(int, int)> dependencies = spreadsheet.dependencies[cellChangeEvent.Row][cellChangeEvent.Column];
+
+                    // Print the dependencies
+                    Console.Write("Dependencies: ");
+                    foreach ((int depRow, int depCol) in dependencies)
+                    {
+                        Console.Write($"({depRow}-{depCol}) ");
+                    }
+                    Console.WriteLine();
+                }
             });
 
-            // Subscribe to cell change events for the second spreadsheet
-            IDisposable subscription2 = secondSpreadsheet.cellChangeSubject.Subscribe(cellChangeEvent =>
-            {
-                // Print the cell change event details to the console
-                Console.WriteLine($"Second: Cell {cellChangeEvent.Row}-{cellChangeEvent.Column} changed. New value: {cellChangeEvent.Value}");
-            });
 
-            // Set cell values in the original spreadsheet
-            originalSpreadsheet.SetCell(1, 1, "Hello");
-            originalSpreadsheet.SetCell(2, 2, 42);
-            originalSpreadsheet.SetCell(1, 1, "World");
-            originalSpreadsheet.SetCell(3, 3, 3.14);
+            // Set cell values in the spreadsheet
+            spreadsheet.SetCell(1, 1, "=B2"); // Cell A1 references cell B2
+            spreadsheet.SetCell(2, 2, 42);
+            spreadsheet.SetCell(3, 3, "=A1 + B2"); // Cell C3 references cells A1 and B2
 
-            // Unsubscribe from cell change events for both spreadsheets
+        
+
+            // Unsubscribe from cell change events in the spreadsheet and the mirror
             subscription1.Dispose();
-            subscription2.Dispose();
+
 
             // Wait for user input to prevent the console from closing
             Console.ReadKey();
