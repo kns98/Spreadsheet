@@ -9,11 +9,11 @@ namespace MicroSpread
 {
     class SpreadsheetMirror
     {
-        private object[,] data;
+        private Dictionary<(int, int), object> data;
 
         public SpreadsheetMirror(int numRows, int numCols)
         {
-            data = new object[numRows, numCols];
+            data = new Dictionary<(int, int), object>();
         }
 
         public void SubscribeToSpreadsheet(Spreadsheet spreadsheet)
@@ -26,17 +26,25 @@ namespace MicroSpread
 
         public object GetCell(int row, int col)
         {
-            return data[row - 1, col - 1];
+            var key = (row, col);
+            if (data.ContainsKey(key))
+            {
+                return data[key];
+            }
+            else
+            {
+                return null; // Or throw an exception if cell doesn't exist
+            }
         }
 
         private void SetCell(int row, int col, object value)
         {
-            if (data[row - 1, col - 1] != value)
+            var key = (row, col);
+            if (!data.ContainsKey(key) || !data[key].Equals(value))
             {
                 Console.WriteLine($"Mirror: Cell {row}-{col} changed. New value: {value}");
-                data[row - 1, col - 1] = value;
+                data[key] = value;
             }
         }
-
     }
 }
