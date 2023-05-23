@@ -100,24 +100,38 @@ class Program
 {
     static void Main(string[] args)
     {
-        // Create a new instance of the Spreadsheet class
-        Spreadsheet spreadsheet = new Spreadsheet();
+        // Create the original instance of the Spreadsheet class
+        Spreadsheet originalSpreadsheet = new Spreadsheet();
 
-        // Subscribe to cell change events
-        IDisposable subscription = spreadsheet.cellChangeSubject.Subscribe(cellChangeEvent =>
+        // Create the second instance of the Spreadsheet class
+        Spreadsheet secondSpreadsheet = new Spreadsheet();
+
+        // Subscribe to cell change events for the original spreadsheet
+        IDisposable subscription1 = originalSpreadsheet.cellChangeSubject.Subscribe(cellChangeEvent =>
         {
             // Print the cell change event details to the console
-            Console.WriteLine($"Cell {cellChangeEvent.Row}-{cellChangeEvent.Column} changed. New value: {cellChangeEvent.Value}");
+            Console.WriteLine($"Original: Cell {cellChangeEvent.Row}-{cellChangeEvent.Column} changed. New value: {cellChangeEvent.Value}");
+
+            // Update the corresponding cell in the second spreadsheet
+            secondSpreadsheet.SetCell(cellChangeEvent.Row, cellChangeEvent.Column, cellChangeEvent.Value);
         });
 
-        // Set cell values
-        spreadsheet.SetCell(1, 1, "Hello");
-        spreadsheet.SetCell(2, 2, 42);
-        spreadsheet.SetCell(1, 1, "World");
-        spreadsheet.SetCell(3, 3, 3.14);
+        // Subscribe to cell change events for the second spreadsheet
+        IDisposable subscription2 = secondSpreadsheet.cellChangeSubject.Subscribe(cellChangeEvent =>
+        {
+            // Print the cell change event details to the console
+            Console.WriteLine($"Second: Cell {cellChangeEvent.Row}-{cellChangeEvent.Column} changed. New value: {cellChangeEvent.Value}");
+        });
 
-        // Unsubscribe from cell change events
-        subscription.Dispose();
+        // Set cell values in the original spreadsheet
+        originalSpreadsheet.SetCell(1, 1, "Hello");
+        originalSpreadsheet.SetCell(2, 2, 42);
+        originalSpreadsheet.SetCell(1, 1, "World");
+        originalSpreadsheet.SetCell(3, 3, 3.14);
+
+        // Unsubscribe from cell change events for both spreadsheets
+        subscription1.Dispose();
+        subscription2.Dispose();
 
         // Wait for user input to prevent the console from closing
         Console.ReadKey();
