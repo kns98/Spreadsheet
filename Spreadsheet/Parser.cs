@@ -17,11 +17,11 @@ namespace MicroSpread
             this.position = 0;
         }
 
-        public double Parse()
+        public double Parse(SpreadsheetMirror s)
         {
             var tokens = Tokenize();
             var parsedExpression = ParseExpression(tokens);
-            return Evaluate(parsedExpression);
+            return Evaluate(parsedExpression, s);
         }
 
         private List<string> Tokenize()
@@ -119,7 +119,7 @@ namespace MicroSpread
             return parsedExpression;
         }
 
-        private double Evaluate(List<string> parsedExpression)
+        private double Evaluate(List<string> parsedExpression, SpreadsheetMirror s)
         {
             var valueStack = new Stack<double>();
 
@@ -129,7 +129,7 @@ namespace MicroSpread
                 {
                     if (IsVariable(token))
                     {
-                        var variableValue = EvaluateVariable(token);
+                        var variableValue = EvaluateVariable(token, s);
                         valueStack.Push(variableValue);
                     }
                     else
@@ -172,7 +172,8 @@ namespace MicroSpread
 
             if (valueStack.Count != 1)
             {
-                throw new InvalidOperationException("Invalid expression.");
+                //throw new InvalidOperationException("Invalid expression.");
+                return 0;
             }
 
             return valueStack.Pop();
@@ -209,25 +210,36 @@ namespace MicroSpread
             }
         }
 
-        private double EvaluateVariable(string token)
+        private double EvaluateVariable(string token, SpreadsheetMirror s)
         {
-            var letter = token[0];
-            var number = int.Parse(token[1].ToString());
+            var letter = (int)token[0] - (int)'A';
+            var number = int.Parse(token[1].ToString()) - 1;
 
-            var variableValues = new Dictionary<char, double>
-        {
-            { 'A', 10 },
-            { 'B', 20 },
-            { 'C', 30 }
-        };
+            var data = s.data;
 
-            if (variableValues.ContainsKey(letter))
+            if (data.ContainsKey((letter, number)))
             {
-                return variableValues[letter] * number;
+                var value = data[(letter, number)];
+
+                if (value is int)
+                {
+                    return (int)value;
+                }
+                else if (value is string)
+                {
+                    var expression = (string)value;
+                    // Evaluate the expression if needed and return the result
+                    return new Parser(expression).Parse(s);
+                }
+                else
+                {
+                    throw new InvalidOperationException("Invalid value type: " + value.GetType().Name);
+                }
             }
             else
             {
-                throw new InvalidOperationException("Unknown variable: " + token);
+                return 0;
+                //throw new InvalidOperationException("Unknown variable: " + token);
             }
         }
     }

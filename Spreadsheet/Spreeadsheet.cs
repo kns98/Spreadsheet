@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 namespace MicroSpread
 {
 
-    class Spreadsheet
+    public class Spreadsheet
     {
         // Dictionary to store cell values, where the key is the row number and the value is a dictionary of column numbers and cell values
         private Dictionary<int, Dictionary<int, object>> data;

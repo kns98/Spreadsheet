@@ -41,6 +41,8 @@ namespace MicroSpread
                     }
                     Console.WriteLine();
                 }
+
+                Console.WriteLine("Value: " + new Parser(cellChangeEvent.Value.ToString().Replace("=","")).Parse(mirror));
             });
 
 

@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 
 namespace MicroSpread
 {
-    class SpreadsheetMirror
+    public class SpreadsheetMirror
     {
-        private Dictionary<(int, int), object> data;
+        public Dictionary<(int, int), object> data;
 
         public SpreadsheetMirror(int numRows, int numCols)
         {
