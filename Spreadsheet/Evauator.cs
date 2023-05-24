@@ -70,7 +70,7 @@ public class Evaluator
         {
             new string[] { "", "", "R1C1 R1C2" },
             new string[] { "R1C1", "R1C1 R1C2", "" },
-            new string[] { "R2C1 R3C1", "R1C2 C2R2", "R1C3 C3R2" }
+            new string[] { "R2C1 R3C1", "R1C2 C2R2", "R1C3 R2C3" }
         };
 
 
@@ -268,7 +268,7 @@ public class DependencyGraph
             var source = entry.Key;
             var targets = entry.Value;
 
-            Console.WriteLine($"Cell {source.ToString()} depends on:");
+            Console.WriteLine($"Cell {source.ToString()} feeds :");
 
             foreach (var target in targets)
             {
