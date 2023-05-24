@@ -37,7 +37,7 @@ namespace MicroSpread
             }
         }
 
-        private void SetCell(int row, int col, object value)
+        public void SetCell(int row, int col, object value)
         {
             var key = (row, col);
             if (!data.ContainsKey(key) || !data[key].Equals(value))
