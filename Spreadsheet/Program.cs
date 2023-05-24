@@ -10,7 +10,8 @@ namespace MicroSpread
     {
         static void Main(string[] args)
         {
-            Test.Test_Parser(new string[] { });
+            // Uncomment to run tests
+            // Test.Test_Parser(new string[] { });
 
             // Create a new instance of the Spreadsheet class
             Spreadsheet spreadsheet = new Spreadsheet();

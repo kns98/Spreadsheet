@@ -12,7 +12,6 @@ namespace MicroSpread
             TestExpressionWithMismatchedParentheses();
         }
 
-
         public static void Test_Expr()
         {
             // Create a sample expression
@@ -48,8 +47,6 @@ namespace MicroSpread
                 Console.WriteLine("An error occurred: " + ex.Message);
             }
         }
-
-
         public static void TestExpressionWithParentheses()
         {
             // Create a sample expression with parentheses
@@ -86,7 +83,6 @@ namespace MicroSpread
                 Console.WriteLine("An error occurred: " + ex.Message);
             }
         }
-
         public static void TestExpressionWithMismatchedParentheses()
         {
             // Create a sample expression with mismatched parentheses
