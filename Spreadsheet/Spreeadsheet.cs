@@ -142,8 +142,35 @@ namespace MicroSpread
             // This is just a placeholder implementation that returns the expression itself as the cell value
             return coordinates.Id();
         }
-    }
 
+        // Accessor method to provide access to the data as Dictionary<int, Dictionary<int, object>>
+        public Dictionary<int, Dictionary<int, object>> GetData()
+        {
+            // Create a new dictionary to hold the data
+            Dictionary<int, Dictionary<int, object>> result = new Dictionary<int, Dictionary<int, object>>();
+
+            foreach (var entry in data)
+            {
+                CellCoordinates coordinates = entry.Key;
+                object value = entry.Value;
+
+                // Get the row number and column number from the cell coordinates
+                int rowNumber = coordinates.RowNumber;
+                int colNumber = coordinates.ColNumber;
+
+                // Check if the row exists in the result dictionary
+                if (!result.ContainsKey(rowNumber))
+                {
+                    result[rowNumber] = new Dictionary<int, object>();
+                }
+
+                // Add the cell value to the corresponding row and column in the result dictionary
+                result[rowNumber][colNumber] = value;
+            }
+
+            return result;
+        }
+    }
 }
 
 

@@ -16,7 +16,7 @@ namespace MicroSpread
             Spreadsheet spreadsheet = new Spreadsheet();
 
             // Create a new instance of the SpreadsheetMirror class
-            SpreadsheetMirror mirror = new SpreadsheetMirror(3, 3);
+            SpreadsheetMirror mirror = new SpreadsheetMirror(4, 4);
 
             // Subscribe to cell change events in the spreadsheet
             IDisposable subscription1 = spreadsheet.cellChangeSubject.Subscribe(cellChangeEvent =>
@@ -48,8 +48,12 @@ namespace MicroSpread
 
             // Set cell values in the spreadsheet
             spreadsheet.SetCell(new CellCoordinates(1, 1), "=B2"); // Cell A1 references cell B2
-            spreadsheet.SetCell(new CellCoordinates(2, 2), 42);
+            spreadsheet.SetCell(new CellCoordinates(2, 2), "=D3");
+            spreadsheet.SetCell(new CellCoordinates(3, 4), "42");
             spreadsheet.SetCell(new CellCoordinates(3, 3), "=A1 + B2"); // Cell C3 references cells A1 and B2
+
+            Evaluator evaluator = new Evaluator();
+            evaluator.EvalSheet(spreadsheet);
 
             // Unsubscribe from cell change events in the spreadsheet and the mirror
             subscription1.Dispose();

@@ -41,8 +41,17 @@ public partial class Evaluator
         DependencyGraph.PrintGraph(deps);
         Console.WriteLine("Updating targets ...");
         DependencyGraph.UpdateGraph(deps,data);
-        DependencyGraph.PrintGraph(data,deps);
+        DependencyGraph.PrintGraph(deps,data);
 
+    }
+    public void EvalSheet(Spreadsheet s)
+    {
+        var deps = s.dependencies;
+        var data = s.GetData();
+        DependencyGraph.PrintGraph(deps);
+        Console.WriteLine("Updating targets ...");
+        DependencyGraph.UpdateGraph(deps, data);
+        DependencyGraph.PrintGraph( deps, data);
     }
 
     public static Dictionary<CellCoordinates, List<CellCoordinates>> BuildDependencies(string[][] dependencyTexts)
@@ -120,7 +129,10 @@ public partial class Evaluator
                 var source = entry.Key;
                 var targets = entry.Value;
 
-                Console.WriteLine($"Cell {source.ToString()} is fed by :");
+                if (targets.Count > 0)
+                {
+                    Console.WriteLine($"Cell {source.ToString()} is fed by :");
+                }
 
                 foreach (var target in targets)
                 {
@@ -128,14 +140,17 @@ public partial class Evaluator
                 }
             }
         }
-        static public void PrintGraph(Dictionary<int, Dictionary<int, object>> data, Dictionary<CellCoordinates, List<CellCoordinates>> dependencies)
+        static public void PrintGraph( Dictionary<CellCoordinates, List<CellCoordinates>> dependencies, Dictionary<int, Dictionary<int, object>> data)
         {
             foreach (var entry in dependencies)
             {
                 var source = entry.Key;
                 var targets = entry.Value;
 
-                Console.WriteLine($"Cell source {source.ToString()} :" + data[source.RowNumber][source.ColNumber]);
+                if (targets.Count > 0)
+                {
+                    Console.WriteLine($"Cell source {source.ToString()} :" + data[source.RowNumber][source.ColNumber]);
+                }
 
                 foreach (var target in targets)
                 {
