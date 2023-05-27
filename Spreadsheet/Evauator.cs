@@ -1,53 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using static Evaluator;
 
 public class Evaluator
 {
 
-    /// <summary>
-    /// Builds the cell dependencies based on the dependency texts.
-    /// </summary>
-    /// <param name="dependencyTexts">The array of dependency texts.</param>
-    /// <param name="data">The data containing cell values.</param>
-    /// <returns>A dictionary of cell dependencies.</returns>
-    static Dictionary<int, Dictionary<int, List<(int, int)>>> BuildDependencies(string[][] dependencyTexts, Dictionary<int, Dictionary<int, object>> data)
-    {
-        Dictionary<int, Dictionary<int, List<(int, int)>>> dependencies = new Dictionary<int, Dictionary<int, List<(int, int)>>>();
-
-        for (int row = 1; row <= dependencyTexts.Length; row++)
-        {
-            Dictionary<int, List<(int, int)>> rowDependencies = new Dictionary<int, List<(int, int)>>();
-
-            string[] colDependencies = dependencyTexts[row - 1];
-
-            for (int col = 1; col <= colDependencies.Length; col++)
-            {
-                string coordinate = colDependencies[col - 1];
-
-                if (coordinate.Length > 0)
-                {
-                    (int, int) parsedCoordinate = ParseCoordinates(coordinate);
-
-                    if (!rowDependencies.ContainsKey(col))
-                    {
-                        rowDependencies[col] = new List<(int, int)>();
-                    }
-
-                    rowDependencies[col].Add(parsedCoordinate);
-                }
-            }
-
-            dependencies[row] = rowDependencies;
-        }
-
-        return dependencies;
-    }
-
-
     // Function to parse coordinate string and return as a tuple
     static (int, int) ParseCoordinates(string coordinate)
     {
-        if (coordinate=="") return (-1, -1);
+        if (coordinate == "") return (-1, -1);
         string[] parts = coordinate.Split('R', 'C');
 
         int row = int.Parse(parts[1]);
@@ -63,7 +25,7 @@ public class Evaluator
         {
             { 1, new Dictionary<int, object> { { 1, 10 }, { 2, 20 }, { 3, "=A1+B1" } } },
             { 2, new Dictionary<int, object> { { 1, "=A1+5" }, { 2, "=A1+B1" }, { 3, 30 } } },
-            { 3, new Dictionary<int, object> { { 1, "=A2+A3" }, { 2, "=B1+B2" }, { 3, "=C1+C2" } } }
+            { 3, new Dictionary<int, object> { { 1, "=A2+A2" }, { 2, "=B1+B2" }, { 3, "=C1+C2" } } }
         };
 
         string[][] dependencyTexts = new string[][]
@@ -74,16 +36,12 @@ public class Evaluator
         };
 
 
-        Dictionary<int, Dictionary<int, List<(int, int)>>> deps = BuildDependencies(dependencyTexts, data);
+        var deps = BuildDependencies(dependencyTexts);
+        DependencyGraph.PrintGraph(deps);
+        Console.WriteLine("Updating targets ...");
 
-        // Create an instance of the DataParser
-        DataParser parser = new DataParser();
-
-        // Parse the data and dependencies
-        parser.ParseData(data, deps);
-
-        parser.dependencyGraph.PrintGraph();
-
+        DependencyGraph.UpdateGraph(deps,data);
+        DependencyGraph.PrintGraph(data,deps);
         // Evaluate the spreadsheet
         //Dictionary<CellCoordinates, object> evaluatedCells = parser.EvaluateSpreadsheet();
         // Display the evaluated values
@@ -92,227 +50,150 @@ public class Evaluator
         //    Console.WriteLine($"Cell ({cell.Key.RowNumber}, {cell.Key.ColNumber}): {cell.Value}");
         //}
     }
-}
 
-
-public class CellCoordinates
-{
-    public int RowNumber { get; }
-    public int ColNumber { get; }
-
-    public CellCoordinates(int rowNumber, int colNumber)
+    public static Dictionary<CellCoordinates, List<CellCoordinates>> BuildDependencies(string[][] dependencyTexts)
     {
-        RowNumber = rowNumber;
-        ColNumber = colNumber;
-    }
+        Dictionary<CellCoordinates, List<CellCoordinates>> dependencies = new Dictionary<CellCoordinates, List<CellCoordinates>>();
 
-    public override string ToString()
-    {
-        return $"Row {RowNumber}, Column {ColNumber}";
-    }
-}
-
-
-public class DataParser
-{
-    private Dictionary<CellCoordinates, object> cellValues;
-    public DependencyGraph dependencyGraph;
-
-    public DataParser()
-    {
-        cellValues = new Dictionary<CellCoordinates, object>();
-        dependencyGraph = new DependencyGraph();
-    }
-
-    public void ParseData(Dictionary<int, Dictionary<int, object>> data, Dictionary<int, Dictionary<int, List<(int, int)>>> dependencies)
-    {
-        foreach (var row in data)
+        for (int row = 0; row < dependencyTexts.Length; row++)
         {
-            int rowNumber = row.Key;
-            var rowData = row.Value;
+            string[] dependencyRow = dependencyTexts[row];
 
-            foreach (var cell in rowData)
+            for (int col = 0; col < dependencyRow.Length; col++)
             {
-                int colNumber = cell.Key;
-                object value = cell.Value;
+                string dependencyText = dependencyRow[col];
 
-                // Update cell values dictionary
-                cellValues[new CellCoordinates(rowNumber, colNumber)] = value;
+                if (!string.IsNullOrEmpty(dependencyText))
+                {
+                    string[] dependencyCells = dependencyText.Split(' ');
 
-                // Update dependency graph
-                UpdateDependencyGraph(new CellCoordinates(rowNumber, colNumber), value.ToString(), dependencies);
-            }
-        }
-    }
+                    CellCoordinates cellCoordinates = new CellCoordinates(row + 1, col + 1);
+                    List<CellCoordinates> cellDependencies = new List<CellCoordinates>();
 
-    private void UpdateDependencyGraph(CellCoordinates cell, string value, Dictionary<int, Dictionary<int, List<(int, int)>>> dependencies)
-    {
-        if (dependencies.ContainsKey(cell.RowNumber) && dependencies[cell.RowNumber].ContainsKey(cell.ColNumber))
-        {
-            // Get dependencies from the provided dictionary
-            List<(int, int)> cellDependencies = dependencies[cell.RowNumber][cell.ColNumber];
+                    foreach (string dependencyCell in dependencyCells)
+                    {
+                        string[] parts = dependencyCell.Split('R', 'C');
 
-            // Remove old dependencies for the cell
-            List<CellCoordinates> oldDependencies = dependencyGraph.GetDependencies(cell);
-            foreach (var dependency in oldDependencies)
-            {
-                dependencyGraph.RemoveDependency(dependency, cell);
-            }
+                        if (parts.Length == 3 && int.TryParse(parts[1], out int depRow) && int.TryParse(parts[2], out int depCol))
+                        {
+                            CellCoordinates depCoordinates = new CellCoordinates(depRow, depCol);
+                            cellDependencies.Add(depCoordinates);
+                        }
+                    }
 
-            // Add new dependencies for the cell
-            foreach (var dependency in cellDependencies)
-            {
-                dependencyGraph.AddDependency(new CellCoordinates(dependency.Item1, dependency.Item2), cell);
-            }
-        }
-        else
-        {
-            // No dependencies provided for the cell
-            List<CellCoordinates> emptyDependencies = new List<CellCoordinates>();
-
-            // Remove old dependencies for the cell
-            List<CellCoordinates> oldDependencies = dependencyGraph.GetDependencies(cell);
-            foreach (var dependency in oldDependencies)
-            {
-                dependencyGraph.RemoveDependency(dependency, cell);
-            }
-
-            // Add empty dependencies for the cell
-            foreach (var dependency in emptyDependencies)
-            {
-                dependencyGraph.AddDependency(dependency, cell);
-            }
-        }
-    }
-
-    public Dictionary<CellCoordinates, object> EvaluateSpreadsheet()
-    {
-        var visited = new HashSet<CellCoordinates>();
-        var evaluated = new Dictionary<CellCoordinates, object>();
-
-        foreach (var cell in cellValues.Keys)
-        {
-            EvaluateCell(cell, visited, evaluated);
-        }
-
-        return evaluated;
-    }
-
-    private object EvaluateCell(CellCoordinates cell, HashSet<CellCoordinates> visited, Dictionary<CellCoordinates, object> evaluated)
-    {
-        if (evaluated.ContainsKey(cell))
-        {
-            // Cell already evaluated, return the value
-            return evaluated[cell];
-        }
-
-        if (visited.Contains(cell))
-        {
-            // Circular dependency detected, return null or appropriate error value
-            return null;
-        }
-
-        visited.Add(cell);
-
-        var dependencies = dependencyGraph.GetDependencies(cell);
-        object value = cellValues[cell];
-
-        if (dependencies.Count > 0)
-        {
-            // Evaluate dependencies
-            var dependencyValues = new List<object>();
-            foreach (var dependency in dependencies)
-            {
-                var dependencyValue = EvaluateCell(dependency, visited, evaluated);
-                dependencyValues.Add(dependencyValue);
-            }
-
-            // Evaluate the current cell's value based on the dependencies
-            value = EvaluateCellFormula(value.ToString(), dependencyValues);
-        }
-
-        evaluated[cell] = value;
-        visited.Remove(cell);
-
-        return value;
-    }
-
-    private object EvaluateCellFormula(string formula, List<object> dependencies)
-    {
-        // Custom logic to evaluate the cell formula based on the dependencies
-        // Implement your own formula evaluation logic here
-        // This is just a placeholder
-
-        // For example, assume the formula is a sum of dependencies
-        int sum = 0;
-        foreach (var dependency in dependencies)
-        {
-            if (dependency is int)
-            {
-                sum += (int)dependency;
+                    dependencies[cellCoordinates] = cellDependencies;
+                }
             }
         }
 
-        return sum;
+        return dependencies;
     }
-}
 
-public class DependencyGraph
-{
-    private Dictionary<CellCoordinates, List<CellCoordinates>> dependencies;
 
-    public void PrintGraph()
+    public class CellCoordinates
     {
-        foreach (var entry in dependencies)
+        public int RowNumber { get; }
+        public int ColNumber { get; }
+
+        public CellCoordinates(int rowNumber, int colNumber)
         {
-            var source = entry.Key;
-            var targets = entry.Value;
+            RowNumber = rowNumber;
+            ColNumber = colNumber;
+        }
 
-            Console.WriteLine($"Cell {source.ToString()} feeds :");
+        public override string ToString()
+        {
+            return $"Row {RowNumber}, Column {ColNumber}";
+        }
 
-            foreach (var target in targets)
+        public string Id()
+        {
+            int row = RowNumber;
+            int column = ColNumber;
+
+            string columnLetters = string.Empty;
+
+            // Convert column index to column letters
+            while (column > 0)
             {
-                Console.WriteLine($"- Cell {target.ToString()}");
+                int remainder = (column - 1) % 26;
+                columnLetters = (char)('A' + remainder) + columnLetters;
+                column = (column - 1) / 26;
+            }
+
+            return $"{columnLetters}{row}";
+        }
+    }
+
+    public class DependencyGraph
+    {
+        static public void UpdateGraph(Dictionary<CellCoordinates, List<CellCoordinates>> dependencies, 
+            Dictionary<int, Dictionary<int, object>> data)
+        {
+            foreach (var entry in dependencies)
+            {
+                CellCoordinates source = entry.Key;
+                List<CellCoordinates> targets = entry.Value;
+
+                Console.WriteLine($"Cell {source.ToString()} is fed by:");
+
+                foreach (CellCoordinates target in targets)
+                {
+                    if (data.TryGetValue(target.RowNumber, out Dictionary<int, object> rowData))
+                    {
+                        if (rowData.TryGetValue(target.ColNumber, out object cellValue))
+                        {
+                            string targetValue = cellValue.ToString();
+                            string replacedSource = data[source.RowNumber][source.ColNumber].ToString()
+                                .Replace("=","")
+                                .Replace(target.Id(), targetValue);
+                            data[source.RowNumber][source.ColNumber] = "="+replacedSource;
+                            Console.WriteLine($"- Replaced Source: {replacedSource}");
+                        }
+                    }
+                }
             }
         }
-    }
 
-    public DependencyGraph()
-    {
-        dependencies = new Dictionary<CellCoordinates, List<CellCoordinates>>();
-    }
-
-    public void AddDependency(CellCoordinates source, CellCoordinates target)
-    {
-        if (dependencies.ContainsKey(source))
+        static public void PrintGraph(Dictionary<CellCoordinates, List<CellCoordinates>> dependencies)
         {
-            dependencies[source].Add(target);
-        }
-        else
-        {
-            dependencies[source] = new List<CellCoordinates> { target };
-        }
-    }
-
-    public void RemoveDependency(CellCoordinates source, CellCoordinates target)
-    {
-        if (dependencies.ContainsKey(source))
-        {
-            dependencies[source].Remove(target);
-            if (dependencies[source].Count == 0)
+            foreach (var entry in dependencies)
             {
-                dependencies.Remove(source);
+                var source = entry.Key;
+                var targets = entry.Value;
+
+                Console.WriteLine($"Cell {source.ToString()} is fed by :");
+
+                foreach (var target in targets)
+                {
+                    Console.WriteLine($"- Cell {target.ToString()}");
+                }
             }
         }
-    }
-
-    public List<CellCoordinates> GetDependencies(CellCoordinates cell)
-    {
-        if (dependencies.ContainsKey(cell))
+        static public void PrintGraph(Dictionary<int, Dictionary<int, object>> data, Dictionary<CellCoordinates, List<CellCoordinates>> dependencies)
         {
-            return dependencies[cell];
+            foreach (var entry in dependencies)
+            {
+                var source = entry.Key;
+                var targets = entry.Value;
+
+                Console.WriteLine($"Cell source {source.ToString()} :" + data[source.RowNumber][source.ColNumber]);
+
+                foreach (var target in targets)
+                {
+                    Console.WriteLine($"- Cell {target.ToString()} : " + data[target.RowNumber][target.ColNumber]);
+                }
+            }
         }
 
-        return new List<CellCoordinates>();
+
+
+        static private object GetValueFromSource(Dictionary<int, Dictionary<int, object>> data, int columnIndex, int rowIndex)
+        {
+            // Implement your logic to retrieve the numeric value from the source based on the column and row index
+            // For example, if source is a 2D array:
+            return data[rowIndex][columnIndex];
+        }
+
     }
 }
