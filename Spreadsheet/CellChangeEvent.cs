@@ -8,15 +8,18 @@ namespace MicroSpread
 {
     public class CellChangeEvent
     {
-        public int Row { get; }
-        public int Column { get; }
+        public CellCoordinates Coordinates { get; }
         public object Value { get; }
 
-        public CellChangeEvent(int row, int col, object value)
+        public int Row => Coordinates.RowNumber;
+        public int Column => Coordinates.ColNumber;
+
+        public CellChangeEvent(CellCoordinates coordinates, object value)
         {
-            Row = row;
-            Column = col;
+            Coordinates = coordinates;
             Value = value;
         }
     }
+
+
 }

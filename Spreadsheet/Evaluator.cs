@@ -1,9 +1,10 @@
-﻿using System;
+﻿using MicroSpread;
+using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using static Evaluator;
 
-public class Evaluator
+public partial class Evaluator
 {
 
     // Function to parse coordinate string and return as a tuple
@@ -18,7 +19,7 @@ public class Evaluator
         return (row, col);
     }
 
-    public static void Main()
+    public static void Test()
     {
         // Sample data
         Dictionary<int, Dictionary<int, object>> data = new Dictionary<int, Dictionary<int, object>>
@@ -32,23 +33,16 @@ public class Evaluator
         {
             new string[] { "", "", "R1C1 R1C2" },
             new string[] { "R1C1", "R1C1 R1C2", "" },
-            new string[] { "R2C1 R3C1", "R1C2 C2R2", "R1C3 R2C3" }
+            new string[] { "R2C1", "R1C2 C2R2", "R1C3 R2C3" }
         };
 
 
         var deps = BuildDependencies(dependencyTexts);
         DependencyGraph.PrintGraph(deps);
         Console.WriteLine("Updating targets ...");
-
         DependencyGraph.UpdateGraph(deps,data);
         DependencyGraph.PrintGraph(data,deps);
-        // Evaluate the spreadsheet
-        //Dictionary<CellCoordinates, object> evaluatedCells = parser.EvaluateSpreadsheet();
-        // Display the evaluated values
-        //foreach (var cell in evaluatedCells)
-        //{
-        //    Console.WriteLine($"Cell ({cell.Key.RowNumber}, {cell.Key.ColNumber}): {cell.Value}");
-        //}
+
     }
 
     public static Dictionary<CellCoordinates, List<CellCoordinates>> BuildDependencies(string[][] dependencyTexts)
@@ -87,42 +81,6 @@ public class Evaluator
         }
 
         return dependencies;
-    }
-
-
-    public class CellCoordinates
-    {
-        public int RowNumber { get; }
-        public int ColNumber { get; }
-
-        public CellCoordinates(int rowNumber, int colNumber)
-        {
-            RowNumber = rowNumber;
-            ColNumber = colNumber;
-        }
-
-        public override string ToString()
-        {
-            return $"Row {RowNumber}, Column {ColNumber}";
-        }
-
-        public string Id()
-        {
-            int row = RowNumber;
-            int column = ColNumber;
-
-            string columnLetters = string.Empty;
-
-            // Convert column index to column letters
-            while (column > 0)
-            {
-                int remainder = (column - 1) % 26;
-                columnLetters = (char)('A' + remainder) + columnLetters;
-                column = (column - 1) / 26;
-            }
-
-            return $"{columnLetters}{row}";
-        }
     }
 
     public class DependencyGraph

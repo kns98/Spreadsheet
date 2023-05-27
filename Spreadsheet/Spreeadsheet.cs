@@ -1,5 +1,4 @@
-﻿
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reactive.Subjects;
@@ -10,58 +9,57 @@ namespace MicroSpread
 
     public class Spreadsheet
     {
-        // Dictionary to store cell values, where the key is the row number and the value is a dictionary of column numbers and cell values
-        private Dictionary<int, Dictionary<int, object>> data;
+        // Dictionary to store cell values, where the key is the cell coordinates and the value is the cell value
+        private Dictionary<CellCoordinates, object> data;
 
-        // Dictionary to store cell dependencies, where the key is the row number and the value is a dictionary of column numbers and dependent cell coordinates
-        public Dictionary<int, Dictionary<int, List<(int, int)>>> dependencies;
+        // Dictionary to store cell dependencies, where the key is the cell coordinates and the value is a list of dependent cell coordinates
+        public Dictionary<CellCoordinates, List<CellCoordinates>> dependencies;
 
         // Subject to publish cell change events
         public Subject<CellChangeEvent> cellChangeSubject;
 
         public Spreadsheet()
         {
-            data = new Dictionary<int, Dictionary<int, object>>();
-            dependencies = new Dictionary<int, Dictionary<int, List<(int, int)>>>();
+            data = new Dictionary<CellCoordinates, object>();
+            dependencies = new Dictionary<CellCoordinates, List<CellCoordinates>>();
             cellChangeSubject = new Subject<CellChangeEvent>();
         }
 
         // Method to set the value of a cell
-        public void SetCell(int row, int col, object value)
+        public void SetCell(CellCoordinates coordinates, object value)
         {
-            // Create a new row dictionary if the row does not exist
-            if (!data.ContainsKey(row))
+            // Create a new row dictionary if the cell coordinates do not exist
+            if (!data.ContainsKey(coordinates))
             {
-                data[row] = new Dictionary<int, object>();
-                dependencies[row] = new Dictionary<int, List<(int, int)>>();
+                data[coordinates] = null;
+                dependencies[coordinates] = new List<CellCoordinates>();
             }
 
             // Check if the cell value has changed
-            if (data[row].ContainsKey(col) && data[row][col] == value)
+            if (data[coordinates] == value || (data[coordinates] != null && data[coordinates].Equals(value)))
             {
                 // Cell value unchanged, no need to notify
                 return;
             }
 
             // Update the cell value
-            data[row][col] = value;
+            data[coordinates] = value;
 
             // Update the dependencies for the cell
-            dependencies[row][col] = FindDependencies(value.ToString());
+            dependencies[coordinates] = FindDependencies(value.ToString());
 
             // Publish the cell change event
-            cellChangeSubject.OnNext(new CellChangeEvent(row, col, value));
-
+            cellChangeSubject.OnNext(new CellChangeEvent(coordinates, value));
         }
 
         // Method to get the value of a cell
-        public object GetCell(int row, int col)
+        public object GetCell(CellCoordinates coordinates)
         {
-            // Check if the row and column exist in the dictionary
-            if (data.ContainsKey(row) && data[row].ContainsKey(col))
+            // Check if the cell coordinates exist in the dictionary
+            if (data.ContainsKey(coordinates))
             {
                 // Return the cell value
-                return data[row][col];
+                return data[coordinates];
             }
 
             // Cell not found
@@ -69,38 +67,24 @@ namespace MicroSpread
         }
 
         // Method to delete a cell
-        public void DeleteCell(int row, int col)
+        public void DeleteCell(CellCoordinates coordinates)
         {
-            // Check if the row exists
-            if (data.ContainsKey(row))
+            // Check if the cell coordinates exist
+            if (data.ContainsKey(coordinates))
             {
-                // Check if the cell exists
-                if (data[row].ContainsKey(col))
-                {
-                    // Remove the cell from the row dictionary
-                    data[row].Remove(col);
+                // Remove the cell from the dictionary
+                data.Remove(coordinates);
+                dependencies.Remove(coordinates);
 
-                    // Remove the dependencies for the cell
-                    dependencies[row][col].Clear();
-
-                    // Publish the cell change event with null value to indicate deletion
-                    cellChangeSubject.OnNext(new CellChangeEvent(row, col, null));
-                }
-
-                // Check if the row dictionary is empty after deletion
-                if (data[row].Count == 0)
-                {
-                    // Remove the row if it has no cells
-                    data.Remove(row);
-                    dependencies[row] = null;
-                }
+                // Publish the cell change event with null value to indicate deletion
+                cellChangeSubject.OnNext(new CellChangeEvent(coordinates, null));
             }
         }
 
         // Method to find cell dependencies in an expression
-        private List<(int, int)> FindDependencies(string expression)
+        private List<CellCoordinates> FindDependencies(string expression)
         {
-            List<(int, int)> dependentCells = new List<(int, int)>();
+            List<CellCoordinates> dependentCells = new List<CellCoordinates>();
 
             // Extract row and cell combinations using regular expressions
             string pattern = @"[A-Za-z]+[0-9]+";
@@ -109,16 +93,16 @@ namespace MicroSpread
             // Iterate through the matches
             foreach (Match match in matches)
             {
-                if (TryParseCellCoordinate(match.Value, out int cellRow, out int cellCol))
+                if (TryParseCellCoordinate(match.Value, out CellCoordinates coordinates))
                 {
                     // Add the dependent cell coordinates to the list
-                    dependentCells.Add((cellRow, cellCol));
+                    dependentCells.Add(coordinates);
 
                     // Initialize the dependent cell if it does not exist
-                    if (!data.ContainsKey(cellRow) || !data[cellRow].ContainsKey(cellCol))
+                    if (!data.ContainsKey(coordinates))
                     {
                         // Push events for these cells
-                        SetCell(cellRow, cellCol, "");
+                        SetCell(coordinates, "");
                     }
                 }
             }
@@ -127,10 +111,9 @@ namespace MicroSpread
         }
 
         // Method to parse cell coordinates from a string (e.g., "A1" or "B2")
-        private bool TryParseCellCoordinate(string cellCoordinate, out int row, out int col)
+        private bool TryParseCellCoordinate(string cellCoordinate, out CellCoordinates coordinates)
         {
-            row = -1;
-            col = -1;
+            coordinates = null;
 
             if (cellCoordinate.Length < 2)
             {
@@ -140,24 +123,27 @@ namespace MicroSpread
             char colChar = cellCoordinate[0];
             string rowStr = cellCoordinate.Substring(1);
 
-            if (!int.TryParse(rowStr, out row))
+            if (!int.TryParse(rowStr, out int row))
             {
                 return false;
             }
 
-            col = colChar - 'A' + 1;
+            int col = colChar - 'A' + 1;
 
+            coordinates = new CellCoordinates(row, col);
             return true;
         }
 
 
         // Method to calculate the value of a cell based on an expression
-        private object CalculateCellValue(string expression)
+        private object CalculateCellValue(CellCoordinates coordinates)
         {
             // TODO: Implement your cell value calculation logic here
             // This is just a placeholder implementation that returns the expression itself as the cell value
-            return expression;
+            return coordinates.Id();
         }
     }
 
 }
+
+
